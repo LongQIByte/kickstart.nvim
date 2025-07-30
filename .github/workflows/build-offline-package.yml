@@ -66,51 +66,120 @@ jobs:
         cp -r * ~/.config/nvim/ 2>/dev/null || true
         ls -la ~/.config/nvim/
         
-    - name: Install plugins with timeout handling
+    - name: Install plugins with robust error handling
       run: |
         export NVIM_APPIMAGE_EXTRACT_AND_RUN=1
         
-        # Create a script to run nvim with timeout
+        # Create a comprehensive plugin installation script
         cat > /tmp/install_plugins.sh << 'EOF'
         #!/bin/bash
         set -e
         
-        echo "Starting Neovim plugin installation..."
+        echo "🔧 Starting Neovim plugin installation..."
         
-        # Run nvim headlessly to trigger plugin installation
-        timeout 600 /usr/local/bin/nvim --headless \
+        # First try: Standard plugin installation
+        echo "📦 Installing plugins (attempt 1/3)..."
+        if timeout 900 /usr/local/bin/nvim --headless \
           -c "lua require('lazy').setup()" \
           -c "lua require('lazy').sync({wait = true})" \
-          -c "qall" || echo "Neovim exited (expected)"
+          -c "qall" 2>/dev/null; then
+          echo "✅ Plugin installation successful"
+        else
+          echo "⚠️  First attempt failed, trying alternative method..."
           
-        echo "Plugin installation completed"
+          # Second try: Force update with explicit wait
+          echo "📦 Installing plugins (attempt 2/3)..."
+          if timeout 900 /usr/local/bin/nvim --headless \
+            -c "lua require('lazy').setup()" \
+            -c "lua require('lazy').install({wait = true})" \
+            -c "lua require('lazy').update({wait = true})" \
+            -c "sleep 5" \
+            -c "qall" 2>/dev/null; then
+            echo "✅ Plugin installation successful on second attempt"
+          else
+            echo "⚠️  Second attempt failed, trying final method..."
+            
+            # Third try: Manual verification
+            echo "📦 Installing plugins (attempt 3/3)..."
+            timeout 900 /usr/local/bin/nvim --headless \
+              -c "lua require('lazy').setup()" \
+              -c "lua require('lazy').restore({wait = true})" \
+              -c "sleep 10" \
+              -c "qall" || echo "Plugin installation completed with warnings"
+          fi
+        fi
+        
+        # Verify installation
+        echo "🔍 Verifying plugin installation..."
+        if [ -d ~/.local/share/nvim/lazy ]; then
+          PLUGIN_COUNT=$(ls -1 ~/.local/share/nvim/lazy | wc -l)
+          echo "✅ Found $PLUGIN_COUNT plugins installed"
+          ls -la ~/.local/share/nvim/lazy/ || true
+        else
+          echo "❌ Plugin directory not found!"
+          exit 1
+        fi
+        
+        echo "🎉 Plugin installation completed successfully"
         EOF
         
         chmod +x /tmp/install_plugins.sh
         /tmp/install_plugins.sh
         
-    - name: Install Mason tools
+    - name: Install Mason tools with verification
       run: |
         export NVIM_APPIMAGE_EXTRACT_AND_RUN=1
         
-        # Create Mason installation script
+        # Create comprehensive Mason installation script
         cat > /tmp/install_mason.sh << 'EOF'
         #!/bin/bash
         set -e
         
-        echo "Installing Mason tools..."
+        echo "🔨 Starting Mason tools installation..."
         
-        # Install Mason tools
-        timeout 900 /usr/local/bin/nvim --headless \
-          -c "lua require('mason-tool-installer').setup()" \
+        # First, ensure Mason is properly set up
+        echo "📋 Setting up Mason..."
+        timeout 300 /usr/local/bin/nvim --headless \
+          -c "lua require('mason').setup()" \
+          -c "qall" || echo "Mason setup completed"
+        
+        # Install tools using mason-tool-installer
+        echo "⚙️  Installing development tools (this may take 10-15 minutes)..."
+        timeout 1800 /usr/local/bin/nvim --headless \
+          -c "lua require('mason-tool-installer').setup({ensure_installed = require('mason-tool-installer').get_installed()})" \
           -c "MasonToolsInstall" \
-          -c "sleep 30" \
-          -c "qall" || echo "Mason installation completed"
-          
-        # Wait a bit more for tools to finish installing
-        sleep 10
+          -c "sleep 60" \
+          -c "qall" || echo "Mason tools installation completed with timeout"
         
-        echo "Mason tools installation completed"
+        # Additional wait for background installations
+        echo "⏳ Waiting for background installations to complete..."
+        sleep 30
+        
+        # Verify installation
+        echo "🔍 Verifying Mason tools installation..."
+        if [ -d ~/.local/share/nvim/mason ]; then
+          echo "✅ Mason directory found"
+          
+          if [ -d ~/.local/share/nvim/mason/bin ]; then
+            TOOL_COUNT=$(ls -1 ~/.local/share/nvim/mason/bin 2>/dev/null | wc -l)
+            echo "✅ Found $TOOL_COUNT Mason tools installed"
+            echo "📋 Installed tools:"
+            ls -la ~/.local/share/nvim/mason/bin/ || true
+          else
+            echo "⚠️  Mason bin directory not found, but Mason is set up"
+          fi
+          
+          # Check packages directory too
+          if [ -d ~/.local/share/nvim/mason/packages ]; then
+            PACKAGE_COUNT=$(ls -1 ~/.local/share/nvim/mason/packages 2>/dev/null | wc -l)
+            echo "✅ Found $PACKAGE_COUNT Mason packages"
+          fi
+        else
+          echo "❌ Mason directory not found!"
+          exit 1
+        fi
+        
+        echo "🎉 Mason tools installation completed successfully"
         EOF
         
         chmod +x /tmp/install_mason.sh
@@ -361,8 +430,11 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         
     - name: Upload artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: neovim-offline-package
         path: neovim-offline-package.tar.gz
         retention-days: 30
+        include-hidden-files: true
+        compression-level: 6
+        overwrite: true
