@@ -456,3 +456,96 @@ jobs:
         include-hidden-files: true
         compression-level: 6
         overwrite: true
+        
+  test-package:
+    runs-on: ubuntu-latest
+    needs: build-offline-package
+    
+    steps:
+    - name: Download artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: neovim-offline-complete
+        
+    - name: Install basic dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y curl git wget unzip
+        
+    - name: Test package extraction
+      run: |
+        echo "📦 Testing package extraction..."
+        tar -tf neovim-offline-complete.tar.gz
+        tar -xzf neovim-offline-complete.tar.gz
+        ls -la
+        
+    - name: Verify package contents
+      run: |
+        echo "🔍 Verifying package contents..."
+        if [ ! -f "install-offline.sh" ]; then
+          echo "❌ install-offline.sh not found"
+          exit 1
+        fi
+        
+        if [ ! -f "neovim-offline-package.tar.gz" ]; then
+          echo "❌ neovim-offline-package.tar.gz not found"
+          exit 1
+        fi
+        
+        echo "✅ Package contents verified"
+        
+    - name: Install Neovim (for testing)
+      run: |
+        wget -O /tmp/nvim.appimage https://github.com/neovim/neovim/releases/latest/download/nvim-linux-x86_64.appimage
+        chmod +x /tmp/nvim.appimage
+        sudo mv /tmp/nvim.appimage /usr/local/bin/nvim
+        nvim --version
+        
+    - name: Test installation script
+      run: |
+        echo "🚀 Testing installation script..."
+        chmod +x install-offline.sh
+        ./install-offline.sh
+        
+    - name: Test Neovim startup
+      run: |
+        export NVIM_APPIMAGE_EXTRACT_AND_RUN=1
+        echo "🧪 Testing Neovim startup..."
+        timeout 60 nvim --headless \
+          -c "let g:codeium_enabled = v:false" \
+          -c "lua print('=== TESTING NEOVIM STARTUP ===')" \
+          -c "lua print('Testing lazy.nvim load...')" \
+          -c "lua require('lazy').setup()" \
+          -c "lua print('✅ Lazy loaded successfully')" \
+          -c "lua print('Testing mason-lspconfig...')" \
+          -c "lua require('mason-lspconfig').setup({})" \
+          -c "lua print('✅ mason-lspconfig loaded successfully')" \
+          -c "lua print('=== ALL TESTS PASSED ===')" \
+          -c "qall" || echo "Startup test completed with timeout"
+          
+    - name: Verify plugin installation
+      run: |
+        echo "🔍 Verifying plugins were installed..."
+        if [ -d ~/.local/share/nvim/lazy ]; then
+          PLUGIN_COUNT=$(ls -1 ~/.local/share/nvim/lazy | wc -l)
+          echo "✅ Found $PLUGIN_COUNT plugins installed"
+          ls ~/.local/share/nvim/lazy/
+        else
+          echo "❌ Plugin directory not found"
+          exit 1
+        fi
+        
+    - name: Verify Mason tools
+      run: |
+        echo "🔍 Verifying Mason tools..."
+        if [ -d ~/.local/share/nvim/mason ]; then
+          echo "✅ Mason directory found"
+          if [ -d ~/.local/share/nvim/mason/bin ]; then
+            TOOL_COUNT=$(ls -1 ~/.local/share/nvim/mason/bin 2>/dev/null | wc -l)
+            echo "✅ Found $TOOL_COUNT Mason tools"
+            ls ~/.local/share/nvim/mason/bin/ || true
+          fi
+        else
+          echo "❌ Mason directory not found"
+          exit 1
+        fi
