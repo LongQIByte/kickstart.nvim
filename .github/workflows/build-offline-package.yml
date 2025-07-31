@@ -69,6 +69,7 @@ jobs:
     - name: Install plugins with robust error handling
       run: |
         export NVIM_APPIMAGE_EXTRACT_AND_RUN=1
+        export CODEIUM_NO_API_KEY_WARNING=1
         
         # Create a comprehensive plugin installation script
         cat > /tmp/install_plugins.sh << 'EOF'
@@ -79,7 +80,7 @@ jobs:
         
         # First try: Standard plugin installation
         echo "📦 Installing plugins (attempt 1/3)..."
-        if timeout 900 /usr/local/bin/nvim --headless \
+        if timeout 900 env CODEIUM_NO_API_KEY_WARNING=1 /usr/local/bin/nvim --headless \
           -c "lua require('lazy').setup()" \
           -c "lua require('lazy').sync({wait = true})" \
           -c "qall" 2>/dev/null; then
@@ -89,7 +90,7 @@ jobs:
           
           # Second try: Force update with explicit wait
           echo "📦 Installing plugins (attempt 2/3)..."
-          if timeout 900 /usr/local/bin/nvim --headless \
+          if timeout 900 env CODEIUM_NO_API_KEY_WARNING=1 /usr/local/bin/nvim --headless \
             -c "lua require('lazy').setup()" \
             -c "lua require('lazy').install({wait = true})" \
             -c "lua require('lazy').update({wait = true})" \
@@ -101,7 +102,7 @@ jobs:
             
             # Third try: Manual verification
             echo "📦 Installing plugins (attempt 3/3)..."
-            timeout 900 /usr/local/bin/nvim --headless \
+            timeout 900 env CODEIUM_NO_API_KEY_WARNING=1 /usr/local/bin/nvim --headless \
               -c "lua require('lazy').setup()" \
               -c "lua require('lazy').restore({wait = true})" \
               -c "sleep 10" \
@@ -129,6 +130,7 @@ jobs:
     - name: Install Mason tools with verification
       run: |
         export NVIM_APPIMAGE_EXTRACT_AND_RUN=1
+        export CODEIUM_NO_API_KEY_WARNING=1
         
         # Create comprehensive Mason installation script
         cat > /tmp/install_mason.sh << 'EOF'
@@ -139,13 +141,13 @@ jobs:
         
         # First, ensure Mason is properly set up
         echo "📋 Setting up Mason..."
-        timeout 300 /usr/local/bin/nvim --headless \
+        timeout 300 env CODEIUM_NO_API_KEY_WARNING=1 /usr/local/bin/nvim --headless \
           -c "lua require('mason').setup()" \
           -c "qall" || echo "Mason setup completed"
         
         # Install tools using mason-tool-installer
         echo "⚙️  Installing development tools (this may take 10-15 minutes)..."
-        timeout 1800 /usr/local/bin/nvim --headless \
+        timeout 1800 env CODEIUM_NO_API_KEY_WARNING=1 /usr/local/bin/nvim --headless \
           -c "lua require('mason-tool-installer').setup({ensure_installed = require('mason-tool-installer').get_installed()})" \
           -c "MasonToolsInstall" \
           -c "sleep 60" \
