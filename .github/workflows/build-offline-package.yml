@@ -29,7 +29,7 @@ jobs:
     - name: Install Neovim
       run: |
         # Install latest stable Neovim
-        wget -O /tmp/nvim.appimage https://github.com/neovim/neovim/releases/latest/download/nvim.appimage
+        wget -O /tmp/nvim.appimage https://github.com/neovim/neovim/releases/latest/download/nvim-linux-x86_64.appimage
         chmod +x /tmp/nvim.appimage
         sudo mv /tmp/nvim.appimage /usr/local/bin/nvim
         
