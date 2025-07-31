@@ -202,12 +202,19 @@ jobs:
         
     - name: Create installation script
       run: |
-        cat > ~/.config/nvim/install-offline.sh << 'EOF'
+        cat > $GITHUB_WORKSPACE/install-offline.sh << 'EOF'
         #!/bin/bash
         
         set -e
         
         echo "🚀 Installing Neovim Offline Package..."
+        
+        # Check if package exists
+        if [ ! -f "neovim-offline-package.tar.gz" ]; then
+            echo "❌ Error: neovim-offline-package.tar.gz not found in current directory"
+            echo "Please make sure you have downloaded the package and run this script in the same directory."
+            exit 1
+        fi
         
         # Backup existing config if it exists
         if [ -d ~/.config/nvim ]; then
@@ -230,9 +237,6 @@ jobs:
         echo "📂 Extracting Neovim configuration and plugins..."
         tar -xf neovim-offline-package.tar.gz -C ~/
         
-        # Set permissions
-        chmod +x ~/.config/nvim/install-offline.sh
-        
         echo "✅ Neovim offline package installed successfully!"
         echo ""
         echo "🎉 You can now start Neovim with all plugins and LSP servers ready!"
@@ -241,7 +245,7 @@ jobs:
         echo "📝 Note: First startup might take a few seconds to initialize."
         EOF
         
-        chmod +x ~/.config/nvim/install-offline.sh
+        chmod +x $GITHUB_WORKSPACE/install-offline.sh
         
     - name: Create usage documentation
       run: |
@@ -280,10 +284,10 @@ jobs:
         
         ## Installation
         
-        1. **Download** the `neovim-offline-package.tar.gz` from releases
-        2. **Extract** to your desired location: 
+        1. **Download** the `neovim-offline-complete.tar.gz` from releases
+        2. **Extract** the package:
            ```bash
-           tar -xzf neovim-offline-package.tar.gz
+           tar -xzf neovim-offline-complete.tar.gz
            ```
         3. **Run** the installation script:
            ```bash
@@ -351,24 +355,33 @@ jobs:
       run: |
         cd ~
         
-        # Create the package with relative paths
-        echo "📦 Creating offline package..."
+        # Create the data package with relative paths
+        echo "📦 Creating Neovim data package..."
         tar --exclude='.git*' \
           --exclude='node_modules' \
           --exclude='*.log' \
-          -czf /tmp/neovim-offline-package.tar.gz \
+          -czf /tmp/neovim-data.tar.gz \
           .config/nvim \
           .local/share/nvim \
           .local/state/nvim \
           .cache/nvim
           
-        # Move to workspace
-        mv /tmp/neovim-offline-package.tar.gz $GITHUB_WORKSPACE/
+        # Move data package to workspace
+        mv /tmp/neovim-data.tar.gz $GITHUB_WORKSPACE/neovim-offline-package.tar.gz
         
-        # Get package size
-        PACKAGE_SIZE=$(du -h neovim-offline-package.tar.gz | cut -f1)
-        echo "📊 Package size: $PACKAGE_SIZE"
-        echo "PACKAGE_SIZE=$PACKAGE_SIZE" >> $GITHUB_ENV
+        # Create final release package containing install script and data package  
+        echo "📦 Creating final release package..."
+        cd $GITHUB_WORKSPACE
+        tar -czf neovim-offline-complete.tar.gz \
+          install-offline.sh \
+          neovim-offline-package.tar.gz
+        
+        # Get package sizes
+        DATA_SIZE=$(du -h neovim-offline-package.tar.gz | cut -f1)
+        COMPLETE_SIZE=$(du -h neovim-offline-complete.tar.gz | cut -f1)
+        echo "📊 Data package size: $DATA_SIZE"
+        echo "📊 Complete package size: $COMPLETE_SIZE" 
+        echo "PACKAGE_SIZE=$COMPLETE_SIZE" >> $GITHUB_ENV
         
     - name: Generate release notes
       run: |
@@ -386,8 +399,8 @@ jobs:
         - **AI Completion**: Codeium (free GitHub Copilot alternative)
         
         ## 🎯 Usage
-        1. Download \`neovim-offline-package.tar.gz\`
-        2. Extract: \`tar -xzf neovim-offline-package.tar.gz\`
+        1. Download \`neovim-offline-complete.tar.gz\`
+        2. Extract: \`tar -xzf neovim-offline-complete.tar.gz\`
         3. Install: \`./install-offline.sh\`
         4. Start: \`nvim\`
         
@@ -429,7 +442,7 @@ jobs:
         name: ${{ steps.release_info.outputs.release_name }}
         body_path: release-notes.md
         files: |
-          neovim-offline-package.tar.gz
+          neovim-offline-complete.tar.gz
         prerelease: ${{ steps.release_info.outputs.is_prerelease }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -437,8 +450,8 @@ jobs:
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: neovim-offline-package
-        path: neovim-offline-package.tar.gz
+        name: neovim-offline-complete
+        path: neovim-offline-complete.tar.gz
         retention-days: 30
         include-hidden-files: true
         compression-level: 6
