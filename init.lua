@@ -93,6 +93,10 @@ vim.g.maplocalleader = ' '
 -- Set to true if you have a Nerd Font installed and selected in the terminal
 vim.g.have_nerd_font = false
 
+-- Disable netrw (use neo-tree instead)
+vim.g.loaded_netrw = 1
+vim.g.loaded_netrwPlugin = 1
+
 -- [[ Setting options ]]
 -- See `:help vim.o`
 -- NOTE: You can change these options as you wish!
@@ -166,10 +170,6 @@ vim.o.scrolloff = 10
 -- See `:help 'confirm'`
 vim.o.confirm = true
 
--- Auto save settings
-vim.o.autowrite = true     -- Automatically write file when switching buffers or leaving vim
-vim.o.autowriteall = true  -- Write all files when switching buffers or leaving vim
-
 -- [[ Basic Keymaps ]]
 --  See `:help vim.keymap.set()`
 
@@ -232,41 +232,6 @@ vim.api.nvim_create_autocmd('TextYankPost', {
   end,
 })
 
--- Auto save autocmds
-local autosave_group = vim.api.nvim_create_augroup('AutoSave', { clear = true })
-
--- Auto save when focus is lost
-vim.api.nvim_create_autocmd({'FocusLost', 'WinLeave'}, {
-  desc = 'Auto save when focus is lost',
-  group = autosave_group,
-  callback = function()
-    if vim.bo.modified and not vim.bo.readonly and vim.fn.expand('%') ~= '' and vim.bo.buftype == '' then
-      vim.api.nvim_command('silent! write')
-    end
-  end,
-})
-
--- Auto save after text change (with delay)
-vim.api.nvim_create_autocmd({'TextChanged', 'TextChangedI'}, {
-  desc = 'Auto save after text change',
-  group = autosave_group,
-  callback = function()
-    if vim.bo.modified and not vim.bo.readonly and vim.fn.expand('%') ~= '' and vim.bo.buftype == '' then
-      -- Use a timer to avoid saving too frequently
-      if vim.g.autosave_timer then
-        vim.fn.timer_stop(vim.g.autosave_timer)
-      end
-      vim.g.autosave_timer = vim.fn.timer_start(2000, function()
-        if vim.bo.modified and not vim.bo.readonly and vim.fn.expand('%') ~= '' and vim.bo.buftype == '' then
-          vim.api.nvim_command('silent! write')
-          -- Show a brief message
-          vim.notify('Auto saved', vim.log.levels.INFO, { title = 'AutoSave', timeout = 1000 })
-        end
-      end)
-    end
-  end,
-})
-
 -- [[ Install `lazy.nvim` plugin manager ]]
 --    See `:help lazy.nvim.txt` or https://github.com/folke/lazy.nvim for more info
 local lazypath = vim.fn.stdpath 'data' .. '/lazy/lazy.nvim'
@@ -296,7 +261,16 @@ rtp:prepend(lazypath)
 require('lazy').setup({
   -- NOTE: Plugins can be added with a link (or for a github repo: 'owner/repo' link).
   'NMAC427/guess-indent.nvim', -- Detect tabstop and shiftwidth automatically
-
+  opts = {
+    auto_cmd = true, -- Set to false to disable the auto cmd
+    override_editorconfig = false, -- Set to false to disable the editorconfig override
+    on_space_options = {
+      expandtab = true,
+      tabstop = 2,
+      shiftwidth = 2,
+      softtabstop = 2,
+    },
+  },
   -- NOTE: Plugins can also be added by using a table,
   -- with the first argument being the link and the following
   -- keys can be used to configure plugin behavior/loading/etc.
@@ -319,18 +293,6 @@ require('lazy').setup({
   -- options to `gitsigns.nvim`.
   --
   -- See `:help gitsigns` to understand what the configuration keys do
-  { -- Adds git related signs to the gutter, as well as utilities for managing changes
-    'lewis6991/gitsigns.nvim',
-    opts = {
-      signs = {
-        add = { text = '+' },
-        change = { text = '~' },
-        delete = { text = '_' },
-        topdelete = { text = '‾' },
-        changedelete = { text = '~' },
-      },
-    },
-  },
 
   -- NOTE: Plugins can also be configured to run Lua code when they are loaded.
   --
@@ -825,16 +787,16 @@ require('lazy').setup({
           table.insert(server_names, name)
         end
       end
-      
+
       local ensure_installed = server_names
       vim.list_extend(ensure_installed, {
         'stylua', -- Used to format Lua code
         -- Python formatters and linters
-        'black',    -- Python formatter
-        'isort',    -- Python import sorter
-        'flake8',   -- Python linter
+        'black', -- Python formatter
+        'isort', -- Python import sorter
+        'flake8', -- Python linter
         -- Go tools
-        'gofumpt',  -- Go formatter
+        'gofumpt', -- Go formatter
         'goimports', -- Go import organizer
         -- JavaScript/TypeScript tools
         'prettier', -- JS/TS/HTML/CSS formatter
@@ -1066,11 +1028,19 @@ require('lazy').setup({
     event = 'BufEnter',
     config = function()
       -- Change '<C-g>' here to any keycode you like.
-      vim.keymap.set('i', '<C-g>', function() return vim.fn['codeium#Accept']() end, { expr = true, silent = true })
-      vim.keymap.set('i', '<c-;>', function() return vim.fn['codeium#CycleCompletions'](1) end, { expr = true, silent = true })
-      vim.keymap.set('i', '<c-,>', function() return vim.fn['codeium#CycleCompletions'](-1) end, { expr = true, silent = true })
-      vim.keymap.set('i', '<c-x>', function() return vim.fn['codeium#Clear']() end, { expr = true, silent = true })
-    end
+      vim.keymap.set('i', '<C-g>', function()
+        return vim.fn['codeium#Accept']()
+      end, { expr = true, silent = true })
+      vim.keymap.set('i', '<c-;>', function()
+        return vim.fn['codeium#CycleCompletions'](1)
+      end, { expr = true, silent = true })
+      vim.keymap.set('i', '<c-,>', function()
+        return vim.fn['codeium#CycleCompletions'](-1)
+      end, { expr = true, silent = true })
+      vim.keymap.set('i', '<c-x>', function()
+        return vim.fn['codeium#Clear']()
+      end, { expr = true, silent = true })
+    end,
   },
 
   -- Git diff viewer
@@ -1118,7 +1088,7 @@ require('lazy').setup({
         win_config = {
           position = 'left',
           width = 35,
-          win_opts = {}
+          win_opts = {},
         },
       },
       file_history_panel = {
@@ -1135,13 +1105,13 @@ require('lazy').setup({
         win_config = {
           position = 'bottom',
           height = 16,
-          win_opts = {}
+          win_opts = {},
         },
       },
       commit_log_panel = {
         win_config = {
           win_opts = {},
-        }
+        },
       },
       default_args = {
         DiffviewOpen = {},
@@ -1151,16 +1121,16 @@ require('lazy').setup({
       keymaps = {
         disable_defaults = false,
         view = {
-          { 'n', '<tab>',       '<cmd>DiffviewToggleFiles<cr>',        { desc = 'Toggle the file panel' } },
-          { 'n', 'gf',          '<cmd>DiffviewToggleFiles<cr>',        { desc = 'Toggle the file panel' } },
-          { 'n', '<leader>e',   '<cmd>DiffviewFocusFiles<cr>',         { desc = 'Bring focus to the file panel' } },
-          { 'n', '<leader>b',   '<cmd>DiffviewToggleFiles<cr>',        { desc = 'Toggle the file panel' } },
-          { 'n', 'g<C-x>',      '<cmd>DiffviewRefresh<cr>',            { desc = 'Update stats and entries in the file list' } },
-          { 'n', '<leader>q',   '<cmd>DiffviewClose<cr>',              { desc = 'Close diffview' } },
-          { 'n', '<leader>co',  '<cmd>DiffviewConflictChooseOurs<cr>', { desc = 'Choose the OURS version of a conflict' } },
-          { 'n', '<leader>ct',  '<cmd>DiffviewConflictChooseTheirs<cr>', { desc = 'Choose the THEIRS version of a conflict' } },
-          { 'n', '<leader>cb',  '<cmd>DiffviewConflictChooseBoth<cr>', { desc = 'Choose the BOTH versions of a conflict' } },
-          { 'n', '<leader>cn',  '<cmd>DiffviewConflictChooseNone<cr>', { desc = 'Delete the conflict region' } },
+          { 'n', '<tab>', '<cmd>DiffviewToggleFiles<cr>', { desc = 'Toggle the file panel' } },
+          { 'n', 'gf', '<cmd>DiffviewToggleFiles<cr>', { desc = 'Toggle the file panel' } },
+          { 'n', '<leader>e', '<cmd>DiffviewFocusFiles<cr>', { desc = 'Bring focus to the file panel' } },
+          { 'n', '<leader>b', '<cmd>DiffviewToggleFiles<cr>', { desc = 'Toggle the file panel' } },
+          { 'n', 'g<C-x>', '<cmd>DiffviewRefresh<cr>', { desc = 'Update stats and entries in the file list' } },
+          { 'n', '<leader>q', '<cmd>DiffviewClose<cr>', { desc = 'Close diffview' } },
+          { 'n', '<leader>co', '<cmd>DiffviewConflictChooseOurs<cr>', { desc = 'Choose the OURS version of a conflict' } },
+          { 'n', '<leader>ct', '<cmd>DiffviewConflictChooseTheirs<cr>', { desc = 'Choose the THEIRS version of a conflict' } },
+          { 'n', '<leader>cb', '<cmd>DiffviewConflictChooseBoth<cr>', { desc = 'Choose the BOTH versions of a conflict' } },
+          { 'n', '<leader>cn', '<cmd>DiffviewConflictChooseNone<cr>', { desc = 'Delete the conflict region' } },
         },
         diff1 = {
           { 'n', 'g?', '<cmd>h diffview-maps-diff1<cr>', { desc = 'Open the help panel' } },
@@ -1175,64 +1145,94 @@ require('lazy').setup({
           { 'n', 'g?', '<cmd>h diffview-maps-diff4<cr>', { desc = 'Open the help panel' } },
         },
         file_panel = {
-          { 'n', 'j',             '<cmd>lua require"diffview.actions".next_entry()<cr>',         { desc = 'Bring the cursor to the next file entry' } },
-          { 'n', '<down>',        '<cmd>lua require"diffview.actions".next_entry()<cr>',         { desc = 'Bring the cursor to the next file entry' } },
-          { 'n', 'k',             '<cmd>lua require"diffview.actions".prev_entry()<cr>',         { desc = 'Bring the cursor to the previous file entry' } },
-          { 'n', '<up>',          '<cmd>lua require"diffview.actions".prev_entry()<cr>',         { desc = 'Bring the cursor to the previous file entry' } },
-          { 'n', '<cr>',          '<cmd>lua require"diffview.actions".select_entry()<cr>',       { desc = 'Open the diff for the selected entry' } },
-          { 'n', 'o',             '<cmd>lua require"diffview.actions".select_entry()<cr>',       { desc = 'Open the diff for the selected entry' } },
-          { 'n', 'l',             '<cmd>lua require"diffview.actions".select_entry()<cr>',       { desc = 'Open the diff for the selected entry' } },
-          { 'n', '<2-LeftMouse>', '<cmd>lua require"diffview.actions".select_entry()<cr>',       { desc = 'Open the diff for the selected entry' } },
-          { 'n', '-',             '<cmd>lua require"diffview.actions".toggle_fold()<cr>',        { desc = 'Toggle fold' } },
-          { 'n', 'h',             '<cmd>lua require"diffview.actions".close_fold()<cr>',         { desc = 'Close fold' } },
-          { 'n', 'R',             '<cmd>lua require"diffview.actions".refresh_files()<cr>',      { desc = 'Update stats and entries in the file list' } },
-          { 'n', '<tab>',         '<cmd>lua require"diffview.actions".select_next_entry()<cr>',  { desc = 'Open the diff for the next file' } },
-          { 'n', '<s-tab>',       '<cmd>lua require"diffview.actions".select_prev_entry()<cr>',  { desc = 'Open the diff for the previous file' } },
-          { 'n', 'gf',            '<cmd>lua require"diffview.actions".goto_file()<cr>',          { desc = 'Open the file in the previous tabpage' } },
-          { 'n', '<C-w><C-f>',    '<cmd>lua require"diffview.actions".goto_file_split()<cr>',    { desc = 'Open the file in a new split' } },
-          { 'n', '<C-w>gf',       '<cmd>lua require"diffview.actions".goto_file_tab()<cr>',      { desc = 'Open the file in a new tabpage' } },
-          { 'n', 'i',             '<cmd>lua require"diffview.actions".listing_style()<cr>',      { desc = 'Toggle between \'list\' and \'tree\' views' } },
-          { 'n', 'f',             '<cmd>lua require"diffview.actions".toggle_flatten_dirs()<cr>', { desc = 'Flatten empty subdirectories in tree listing style' } },
-          { 'n', 'g<C-x>',        '<cmd>lua require"diffview.actions".cycle_layout()<cr>',       { desc = 'Cycle through available layouts' } },
-          { 'n', '[x',            '<cmd>lua require"diffview.actions".prev_conflict()<cr>',      { desc = 'Go to the previous conflict' } },
-          { 'n', ']x',            '<cmd>lua require"diffview.actions".next_conflict()<cr>',      { desc = 'Go to the next conflict' } },
-          { 'n', 'g?',            '<cmd>h diffview-maps-file-panel<cr>',                         { desc = 'Open the help panel' } },
-          { 'n', '<leader>cO',    '<cmd>lua require"diffview.actions".conflict_choose_all("ours")<cr>',   { desc = 'Choose the OURS version of a conflict for the whole file' } },
-          { 'n', '<leader>cT',    '<cmd>lua require"diffview.actions".conflict_choose_all("theirs")<cr>', { desc = 'Choose the THEIRS version of a conflict for the whole file' } },
-          { 'n', '<leader>cB',    '<cmd>lua require"diffview.actions".conflict_choose_all("both")<cr>',   { desc = 'Choose the BOTH versions of a conflict for the whole file' } },
-          { 'n', '<leader>cN',    '<cmd>lua require"diffview.actions".conflict_choose_all("none")<cr>',   { desc = 'Delete the conflict region for the whole file' } },
-          { 'n', 'dx',            '<cmd>lua require"diffview.actions".restore_entry()<cr>',      { desc = 'Restore entry to the state on the left side' } },
+          { 'n', 'j', '<cmd>lua require"diffview.actions".next_entry()<cr>', { desc = 'Bring the cursor to the next file entry' } },
+          { 'n', '<down>', '<cmd>lua require"diffview.actions".next_entry()<cr>', { desc = 'Bring the cursor to the next file entry' } },
+          { 'n', 'k', '<cmd>lua require"diffview.actions".prev_entry()<cr>', { desc = 'Bring the cursor to the previous file entry' } },
+          { 'n', '<up>', '<cmd>lua require"diffview.actions".prev_entry()<cr>', { desc = 'Bring the cursor to the previous file entry' } },
+          { 'n', '<cr>', '<cmd>lua require"diffview.actions".select_entry()<cr>', { desc = 'Open the diff for the selected entry' } },
+          { 'n', 'o', '<cmd>lua require"diffview.actions".select_entry()<cr>', { desc = 'Open the diff for the selected entry' } },
+          { 'n', 'l', '<cmd>lua require"diffview.actions".select_entry()<cr>', { desc = 'Open the diff for the selected entry' } },
+          { 'n', '<2-LeftMouse>', '<cmd>lua require"diffview.actions".select_entry()<cr>', { desc = 'Open the diff for the selected entry' } },
+          { 'n', '-', '<cmd>lua require"diffview.actions".toggle_fold()<cr>', { desc = 'Toggle fold' } },
+          { 'n', 'h', '<cmd>lua require"diffview.actions".close_fold()<cr>', { desc = 'Close fold' } },
+          { 'n', 'R', '<cmd>lua require"diffview.actions".refresh_files()<cr>', { desc = 'Update stats and entries in the file list' } },
+          { 'n', '<tab>', '<cmd>lua require"diffview.actions".select_next_entry()<cr>', { desc = 'Open the diff for the next file' } },
+          { 'n', '<s-tab>', '<cmd>lua require"diffview.actions".select_prev_entry()<cr>', { desc = 'Open the diff for the previous file' } },
+          { 'n', 'gf', '<cmd>lua require"diffview.actions".goto_file()<cr>', { desc = 'Open the file in the previous tabpage' } },
+          { 'n', '<C-w><C-f>', '<cmd>lua require"diffview.actions".goto_file_split()<cr>', { desc = 'Open the file in a new split' } },
+          { 'n', '<C-w>gf', '<cmd>lua require"diffview.actions".goto_file_tab()<cr>', { desc = 'Open the file in a new tabpage' } },
+          { 'n', 'i', '<cmd>lua require"diffview.actions".listing_style()<cr>', { desc = "Toggle between 'list' and 'tree' views" } },
+          {
+            'n',
+            'f',
+            '<cmd>lua require"diffview.actions".toggle_flatten_dirs()<cr>',
+            { desc = 'Flatten empty subdirectories in tree listing style' },
+          },
+          { 'n', 'g<C-x>', '<cmd>lua require"diffview.actions".cycle_layout()<cr>', { desc = 'Cycle through available layouts' } },
+          { 'n', '[x', '<cmd>lua require"diffview.actions".prev_conflict()<cr>', { desc = 'Go to the previous conflict' } },
+          { 'n', ']x', '<cmd>lua require"diffview.actions".next_conflict()<cr>', { desc = 'Go to the next conflict' } },
+          { 'n', 'g?', '<cmd>h diffview-maps-file-panel<cr>', { desc = 'Open the help panel' } },
+          {
+            'n',
+            '<leader>cO',
+            '<cmd>lua require"diffview.actions".conflict_choose_all("ours")<cr>',
+            { desc = 'Choose the OURS version of a conflict for the whole file' },
+          },
+          {
+            'n',
+            '<leader>cT',
+            '<cmd>lua require"diffview.actions".conflict_choose_all("theirs")<cr>',
+            { desc = 'Choose the THEIRS version of a conflict for the whole file' },
+          },
+          {
+            'n',
+            '<leader>cB',
+            '<cmd>lua require"diffview.actions".conflict_choose_all("both")<cr>',
+            { desc = 'Choose the BOTH versions of a conflict for the whole file' },
+          },
+          {
+            'n',
+            '<leader>cN',
+            '<cmd>lua require"diffview.actions".conflict_choose_all("none")<cr>',
+            { desc = 'Delete the conflict region for the whole file' },
+          },
+          { 'n', 'dx', '<cmd>lua require"diffview.actions".restore_entry()<cr>', { desc = 'Restore entry to the state on the left side' } },
         },
         file_history_panel = {
-          { 'n', 'g!',            '<cmd>lua require"diffview.actions".options()<cr>',           { desc = 'Open the option panel' } },
-          { 'n', '<C-A-d>',       '<cmd>lua require"diffview.actions".open_in_diffview()<cr>',  { desc = 'Open the entry under the cursor in a diffview' } },
-          { 'n', 'y',             '<cmd>lua require"diffview.actions".copy_hash()<cr>',         { desc = 'Copy the commit hash of the entry under the cursor' } },
-          { 'n', 'L',             '<cmd>lua require"diffview.actions".open_commit_log()<cr>',   { desc = 'Show commit details' } },
-          { 'n', 'zR',            '<cmd>lua require"diffview.actions".open_all_folds()<cr>',    { desc = 'Expand all folds' } },
-          { 'n', 'zM',            '<cmd>lua require"diffview.actions".close_all_folds()<cr>',   { desc = 'Collapse all folds' } },
-          { 'n', 'j',             '<cmd>lua require"diffview.actions".next_entry()<cr>',        { desc = 'Bring the cursor to the next file entry' } },
-          { 'n', '<down>',        '<cmd>lua require"diffview.actions".next_entry()<cr>',        { desc = 'Bring the cursor to the next file entry' } },
-          { 'n', 'k',             '<cmd>lua require"diffview.actions".prev_entry()<cr>',        { desc = 'Bring the cursor to the previous file entry' } },
-          { 'n', '<up>',          '<cmd>lua require"diffview.actions".prev_entry()<cr>',        { desc = 'Bring the cursor to the previous file entry' } },
-          { 'n', '<cr>',          '<cmd>lua require"diffview.actions".select_entry()<cr>',      { desc = 'Open the diff for the selected entry' } },
-          { 'n', 'o',             '<cmd>lua require"diffview.actions".select_entry()<cr>',      { desc = 'Open the diff for the selected entry' } },
-          { 'n', '<2-LeftMouse>', '<cmd>lua require"diffview.actions".select_entry()<cr>',      { desc = 'Open the diff for the selected entry' } },
-          { 'n', '<tab>',         '<cmd>lua require"diffview.actions".select_next_entry()<cr>', { desc = 'Open the diff for the next file' } },
-          { 'n', '<s-tab>',       '<cmd>lua require"diffview.actions".select_prev_entry()<cr>', { desc = 'Open the diff for the previous file' } },
-          { 'n', 'gf',            '<cmd>lua require"diffview.actions".goto_file()<cr>',         { desc = 'Open the file in the previous tabpage' } },
-          { 'n', '<C-w><C-f>',    '<cmd>lua require"diffview.actions".goto_file_split()<cr>',   { desc = 'Open the file in a new split' } },
-          { 'n', '<C-w>gf',       '<cmd>lua require"diffview.actions".goto_file_tab()<cr>',     { desc = 'Open the file in a new tabpage' } },
-          { 'n', 'g<C-x>',        '<cmd>lua require"diffview.actions".cycle_layout()<cr>',      { desc = 'Cycle through available layouts' } },
-          { 'n', 'g?',            '<cmd>h diffview-maps-file-history-panel<cr>',                { desc = 'Open the help panel' } },
+          { 'n', 'g!', '<cmd>lua require"diffview.actions".options()<cr>', { desc = 'Open the option panel' } },
+          { 'n', '<C-A-d>', '<cmd>lua require"diffview.actions".open_in_diffview()<cr>', { desc = 'Open the entry under the cursor in a diffview' } },
+          {
+            'n',
+            'y',
+            '<cmd>lua require"diffview.actions".copy_hash()<cr>',
+            { desc = 'Copy the commit hash of the entry under the cursor' },
+          },
+          { 'n', 'L', '<cmd>lua require"diffview.actions".open_commit_log()<cr>', { desc = 'Show commit details' } },
+          { 'n', 'zR', '<cmd>lua require"diffview.actions".open_all_folds()<cr>', { desc = 'Expand all folds' } },
+          { 'n', 'zM', '<cmd>lua require"diffview.actions".close_all_folds()<cr>', { desc = 'Collapse all folds' } },
+          { 'n', 'j', '<cmd>lua require"diffview.actions".next_entry()<cr>', { desc = 'Bring the cursor to the next file entry' } },
+          { 'n', '<down>', '<cmd>lua require"diffview.actions".next_entry()<cr>', { desc = 'Bring the cursor to the next file entry' } },
+          { 'n', 'k', '<cmd>lua require"diffview.actions".prev_entry()<cr>', { desc = 'Bring the cursor to the previous file entry' } },
+          { 'n', '<up>', '<cmd>lua require"diffview.actions".prev_entry()<cr>', { desc = 'Bring the cursor to the previous file entry' } },
+          { 'n', '<cr>', '<cmd>lua require"diffview.actions".select_entry()<cr>', { desc = 'Open the diff for the selected entry' } },
+          { 'n', 'o', '<cmd>lua require"diffview.actions".select_entry()<cr>', { desc = 'Open the diff for the selected entry' } },
+          { 'n', '<2-LeftMouse>', '<cmd>lua require"diffview.actions".select_entry()<cr>', { desc = 'Open the diff for the selected entry' } },
+          { 'n', '<tab>', '<cmd>lua require"diffview.actions".select_next_entry()<cr>', { desc = 'Open the diff for the next file' } },
+          { 'n', '<s-tab>', '<cmd>lua require"diffview.actions".select_prev_entry()<cr>', { desc = 'Open the diff for the previous file' } },
+          { 'n', 'gf', '<cmd>lua require"diffview.actions".goto_file()<cr>', { desc = 'Open the file in the previous tabpage' } },
+          { 'n', '<C-w><C-f>', '<cmd>lua require"diffview.actions".goto_file_split()<cr>', { desc = 'Open the file in a new split' } },
+          { 'n', '<C-w>gf', '<cmd>lua require"diffview.actions".goto_file_tab()<cr>', { desc = 'Open the file in a new tabpage' } },
+          { 'n', 'g<C-x>', '<cmd>lua require"diffview.actions".cycle_layout()<cr>', { desc = 'Cycle through available layouts' } },
+          { 'n', 'g?', '<cmd>h diffview-maps-file-history-panel<cr>', { desc = 'Open the help panel' } },
         },
         option_panel = {
-          { 'n', '<tab>', '<cmd>lua require"diffview.actions".select_entry()<cr>',          { desc = 'Change the current option' } },
-          { 'n', 'q',     '<cmd>lua require"diffview.actions".close()<cr>',                 { desc = 'Close the option panel' } },
-          { 'n', 'g?',    '<cmd>h diffview-maps-option-panel<cr>',                          { desc = 'Open the help panel' } },
+          { 'n', '<tab>', '<cmd>lua require"diffview.actions".select_entry()<cr>', { desc = 'Change the current option' } },
+          { 'n', 'q', '<cmd>lua require"diffview.actions".close()<cr>', { desc = 'Close the option panel' } },
+          { 'n', 'g?', '<cmd>h diffview-maps-option-panel<cr>', { desc = 'Open the help panel' } },
         },
         help_panel = {
-          { 'n', 'q',     '<cmd>lua require"diffview.actions".close()<cr>',  { desc = 'Close help menu' } },
-          { 'n', '<esc>', '<cmd>lua require"diffview.actions".close()<cr>',  { desc = 'Close help menu' } },
+          { 'n', 'q', '<cmd>lua require"diffview.actions".close()<cr>', { desc = 'Close help menu' } },
+          { 'n', '<esc>', '<cmd>lua require"diffview.actions".close()<cr>', { desc = 'Close help menu' } },
         },
       },
     },
@@ -1281,10 +1281,29 @@ require('lazy').setup({
     main = 'nvim-treesitter.configs', -- Sets main module to use for opts
     -- [[ Configure Treesitter ]] See `:help nvim-treesitter`
     opts = {
-      ensure_installed = { 
-        'bash', 'c', 'diff', 'html', 'lua', 'luadoc', 'markdown', 'markdown_inline', 'query', 'vim', 'vimdoc',
+      ensure_installed = {
+        'bash',
+        'c',
+        'diff',
+        'html',
+        'lua',
+        'luadoc',
+        'markdown',
+        'markdown_inline',
+        'query',
+        'vim',
+        'vimdoc',
         -- Your tech stack languages
-        'python', 'go', 'javascript', 'typescript', 'tsx', 'css', 'scss', 'json', 'yaml', 'vue'
+        'python',
+        'go',
+        'javascript',
+        'typescript',
+        'tsx',
+        'css',
+        'scss',
+        'json',
+        'yaml',
+        'vue',
       },
       -- Autoinstall languages that are not installed
       auto_install = true,
@@ -1318,14 +1337,14 @@ require('lazy').setup({
   -- require 'kickstart.plugins.indent_line',
   -- require 'kickstart.plugins.lint',
   -- require 'kickstart.plugins.autopairs',
-  -- require 'kickstart.plugins.neo-tree',
-  -- require 'kickstart.plugins.gitsigns', -- adds gitsigns recommend keymaps
+  require 'kickstart.plugins.neo-tree',
+  require 'kickstart.plugins.gitsigns', -- adds gitsigns recommend keymaps
 
   -- NOTE: The import below can automatically add your own plugins, configuration, etc from `lua/custom/plugins/*.lua`
   --    This is the easiest way to modularize your config.
   --
   --  Uncomment the following line and add your plugins to `lua/custom/plugins/*.lua` to get going.
-  -- { import = 'custom.plugins' },
+  { import = 'custom.plugins' },
   --
   -- For additional information with loading, sourcing and examples see `:help lazy.nvim-🔌-plugin-spec`
   -- Or use telescope!
