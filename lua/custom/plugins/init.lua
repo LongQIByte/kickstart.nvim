@@ -72,9 +72,8 @@ return {
     },
     config = function(opts)
       require('todo-comments').setup(opts)
-      
       -- Add telescope search keymap for todos
-      vim.keymap.set('n', '<leader>st', '<cmd>TodoTelescope<cr>', { desc = '[S]earch [T]odos' })
+      vim.keymap.set('n', '<leader>st', '<cmd>TodoTelescope<cr>', { desc = '[S]earch [T]odos [搜索待办事项]' })
     end,
   },
 }
