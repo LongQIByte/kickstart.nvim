@@ -113,6 +113,16 @@ local chinese_translations = {
   ['[D]ebug [V]ariables'] = '[调试] 变量',
   ['[D]ebug [W]atch'] = '[调试] 监视',
   ['[D]ebug [C]all stack'] = '[调试] 调用栈',
+  ['[D]ebug [P]ython interpreter'] = '[调试] Python解释器',
+  ['[D]ebug [R]EPL'] = '[调试] 控制台',
+  ['[D]ebug [L]og level'] = '[调试] 日志级别',
+  ['Launch file (auto venv)'] = '运行文件(自动检测虚拟环境)',
+  ['Launch file with arguments'] = '运行文件(带参数)',
+  ['Launch module'] = '运行模块',
+  ['Attach remote'] = '附加到远程调试',
+  ['Debug Django'] = '调试Django',
+  ['Debug FastAPI'] = '调试FastAPI',
+  ['Debug pytest (current file)'] = '调试pytest(当前文件)',
   
   -- 终端操作
   ['[T]erminal'] = '[终端]',

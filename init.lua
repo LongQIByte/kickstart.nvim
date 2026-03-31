@@ -212,6 +212,12 @@ vim.keymap.set('n', '<C-l>', '<C-w><C-l>', { desc = 'Move focus to the right win
 vim.keymap.set('n', '<C-j>', '<C-w><C-j>', { desc = 'Move focus to the lower window [焦点移到下窗口]' })
 vim.keymap.set('n', '<C-k>', '<C-w><C-k>', { desc = 'Move focus to the upper window [焦点移到上窗口]' })
 
+-- Terminal mode window navigation
+vim.keymap.set('t', '<C-h>', '<C-\\><C-n><C-w><C-h>', { desc = 'Move focus to the left window [焦点移到左窗口]' })
+vim.keymap.set('t', '<C-l>', '<C-\\><C-n><C-w><C-l>', { desc = 'Move focus to the right window [焦点移到右窗口]' })
+vim.keymap.set('t', '<C-j>', '<C-\\><C-n><C-w><C-j>', { desc = 'Move focus to the lower window [焦点移到下窗口]' })
+vim.keymap.set('t', '<C-k>', '<C-\\><C-n><C-w><C-k>', { desc = 'Move focus to the upper window [焦点移到上窗口]' })
+
 -- NOTE: Some terminals have colliding keymaps or are not able to send distinct keycodes
 -- vim.keymap.set("n", "<C-S-h>", "<C-w>H", { desc = "Move window to the left" })
 -- vim.keymap.set("n", "<C-S-l>", "<C-w>L", { desc = "Move window to the right" })
@@ -441,10 +447,16 @@ require('lazy').setup({
       local builtin = require 'telescope.builtin'
       vim.keymap.set('n', '<leader>sh', builtin.help_tags, { desc = '[S]earch [H]elp [搜索帮助]' })
       vim.keymap.set('n', '<leader>sk', builtin.keymaps, { desc = '[S]earch [K]eymaps [搜索快捷键]' })
-      vim.keymap.set('n', '<leader>sf', builtin.find_files, { desc = '[S]earch [F]iles [搜索文件]' })
+      vim.keymap.set('n', '<leader>sf', function()
+        builtin.find_files { hidden = true }
+      end, { desc = '[S]earch [F]iles [搜索文件]' })
       vim.keymap.set('n', '<leader>ss', builtin.builtin, { desc = '[S]earch [S]elect Telescope [搜索选择Telescope]' })
       vim.keymap.set('n', '<leader>sw', builtin.grep_string, { desc = '[S]earch current [W]ord [搜索当前单词]' })
-      vim.keymap.set('n', '<leader>sg', builtin.live_grep, { desc = '[S]earch by [G]rep [通过Grep搜索]' })
+      vim.keymap.set('n', '<leader>sg', function()
+        builtin.live_grep {
+          additional_args = { '--hidden', '--glob', '!.git/*' },
+        }
+      end, { desc = '[S]earch by [G]rep [通过Grep搜索]' })
       vim.keymap.set('n', '<leader>sd', builtin.diagnostics, { desc = '[S]earch [D]iagnostics [搜索诊断]' })
       vim.keymap.set('n', '<leader>sr', builtin.resume, { desc = '[S]earch [R]esume [搜索恢复]' })
       vim.keymap.set('n', '<leader>s.', builtin.oldfiles, { desc = '[S]earch Recent Files ("." for repeat) [搜索最近文件]' })
@@ -674,14 +686,15 @@ require('lazy').setup({
       --  - settings (table): Override the default settings passed when initializing the server.
       --        For example, to see the options for `lua_ls`, you could go to: https://luals.github.io/wiki/settings/
       local servers = {
-        -- Python
-        pyright = {
+        -- Python (BasedPyright - Pyright 增强版，自动检测虚拟环境)
+        basedpyright = {
           settings = {
-            python = {
+            basedpyright = {
               analysis = {
                 autoSearchPaths = true,
-                diagnosticMode = 'workspace',
+                diagnosticMode = 'openFilesOnly',
                 useLibraryCodeForTypes = true,
+                typeCheckingMode = 'off',  -- 关闭类型检查，只保留语法错误
               },
             },
           },
@@ -993,7 +1006,7 @@ require('lazy').setup({
         if term.direction == 'horizontal' then
           return 15
         elseif term.direction == 'vertical' then
-          return vim.o.columns * 0.4
+          return vim.o.columns * 0.3
         end
       end,
       open_mapping = [[<c-\>]],
@@ -1004,7 +1017,7 @@ require('lazy').setup({
       start_in_insert = true,
       insert_mappings = true,
       persist_size = true,
-      direction = 'tab',
+      direction = 'vertical',
       close_on_exit = true,
       shell = vim.o.shell,
     },
@@ -1321,7 +1334,7 @@ require('lazy').setup({
   --  Here are some example plugins that I've included in the Kickstart repository.
   --  Uncomment any of the lines below to enable them (you will need to restart nvim).
   --
-  -- require 'kickstart.plugins.debug',
+  require 'kickstart.plugins.debug',
   -- require 'kickstart.plugins.indent_line',
   -- require 'kickstart.plugins.lint',
   -- require 'kickstart.plugins.autopairs',
