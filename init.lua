@@ -170,6 +170,23 @@ vim.o.scrolloff = 10
 -- See `:help 'confirm'`
 vim.o.confirm = true
 
+-- Auto-reload files changed externally (e.g. by Claude Code)
+vim.opt.autoread = true
+
+local timer = (vim.uv or vim.loop).new_timer()
+timer:start(1000, 1000, vim.schedule_wrap(function()
+  if vim.fn.mode() ~= "c" then
+    pcall(vim.cmd, "checktime")
+  end
+end))
+
+vim.api.nvim_create_autocmd("FileChangedShellPost", {
+  pattern = "*",
+  callback = function()
+    vim.notify("File changed on disk. Buffer reloaded.", vim.log.levels.INFO)
+  end,
+})
+
 -- [[ Basic Keymaps ]]
 --  See `:help vim.keymap.set()`
 
@@ -277,6 +294,21 @@ require('lazy').setup({
       softtabstop = 2,
     },
   },
+  {
+    'okuuva/auto-save.nvim',
+    event = 'VeryLazy',
+    opts = {
+      enabled = true,
+      trigger_events = {
+        immediate_save = { 'BufLeave', 'FocusLost' },
+        defer_save = { 'InsertLeave', 'TextChanged', 'TextChangedI' },
+        cancel_deferred_save = { 'InsertEnter' },
+      },
+      debounce_delay = 1000,
+      print_enabled = false,
+    },
+  },
+
   -- NOTE: Plugins can also be added by using a table,
   -- with the first argument being the link and the following
   -- keys can be used to configure plugin behavior/loading/etc.
